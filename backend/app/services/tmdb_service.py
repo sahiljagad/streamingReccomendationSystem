@@ -52,7 +52,6 @@ def search_content(query: str, page: int = 1) -> dict:
             status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=f"TMDB API error: {str(e)}"
         )
 
-
 def get_movie_details(movie_id: int):
     if not settings.TMDB_API_KEY:
         raise HTTPException(
@@ -77,7 +76,6 @@ def get_movie_details(movie_id: int):
             detail=f"TMDB API error: {str(e)}",
         )
 
-
 def get_tv_details(tv_id: int) -> dict:
     if not settings.TMDB_API_KEY:
         raise HTTPException(
@@ -98,7 +96,6 @@ def get_tv_details(tv_id: int) -> dict:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"TMDB API error: {str(e)}",
         )
-
 
 def get_or_create_content(db: Session, tmdb_id: int, media_type: str) -> Content:
     #check if content already exists in DB
@@ -189,4 +186,44 @@ def get_trending(media_type: str = "all", time_window: str = "week") -> dict:
             detail=f"TMDB API error: {str(e)}"
         )
 
+def get_watch_providers(tmdb_id: int, media_type: str, region: str = "US") -> dict:
+    if not settings.TMDB_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="TMDB API key not configured"
+        )
     
+    if media_type == "movie":
+        url = f"{TMDB_BASE_URL}/movie/{tmdb_id}/watch/providers"
+    elif media_type == "tv":
+        url = f"{TMDB_BASE_URL}/tv/{tmdb_id}/watch/providers"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid media type"
+        )
+    
+    params = {
+        "api_key": settings.TMDB_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Get providers for specified region
+        region_data = data.get("results", {}).get(region, {})
+        
+        # We only care about 'flatrate' (subscription streaming)
+        providers = region_data.get("flatrate", [])
+        
+        return {
+            "region": region,
+            "providers": providers
+        }
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"TMDB API error: {str(e)}"
+        )

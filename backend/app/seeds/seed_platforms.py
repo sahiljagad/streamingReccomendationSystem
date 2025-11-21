@@ -3,33 +3,40 @@ from app.models.platform import Platform
 
 
 def seed_platforms(db: Session):
+    # Seed initial streaming platforms
     platforms = [
         {
             "name": "netflix",
             "display_name": "Netflix",
-            "website_url": "https://www.netflix.com"
+            "website_url": "https://www.netflix.com",
+            "tmdb_provider_id": 8
         },
         {
             "name": "prime",
             "display_name": "Prime Video",
-            "website_url": "https://www.amazon.com/primevideo"
+            "website_url": "https://www.amazon.com/primevideo",
+            "tmdb_provider_id": 9
         },
         {
             "name": "disney",
             "display_name": "Disney+",
-            "website_url": "https://www.disneyplus.com"
+            "website_url": "https://www.disneyplus.com",
+            "tmdb_provider_id": 337
         }
     ]
     
     for platform_data in platforms:
         # Check if platform already exists
         existing = db.query(Platform).filter(Platform.name == platform_data["name"]).first()
-        if not existing:
+        if existing:
+            # Update with TMDB provider ID
+            existing.tmdb_provider_id = platform_data["tmdb_provider_id"]
+        else:
             platform = Platform(**platform_data)
             db.add(platform)
     
     db.commit()
-    print("Platforms seeded successfully")
+    print("Platforms seeded/updated successfully")
 
 
 if __name__ == "__main__":

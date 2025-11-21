@@ -8,6 +8,8 @@ from app.services.tmdb_service import (
     get_trending,
     get_or_create_content
 )
+from app.services.streaming_service import get_content_availability
+from app.models.platform import Platform
 
 router = APIRouter()
 
@@ -51,6 +53,21 @@ class ContentDetailResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PlatformResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    
+    class Config:
+        from_attributes = True
+
+
+class AvailabilityResponse(BaseModel):
+    content_id: int
+    cached: bool
+    cache_age_days: int | None = None
+    stale: bool | None = None
+    platforms: list[PlatformResponse]
 
 # Routes
 @router.get("/search", response_model=ContentSearchResponse)
@@ -77,3 +94,26 @@ def get_content_details(
 ):
     content = get_or_create_content(db, content_id, media_type)
     return content
+
+@router.get("/{content_id}/availability", response_model=AvailabilityResponse)
+def get_content_availability_route(
+    content_id: int,
+    region: str = Query("US", description="Region code (US, GB, CA, ...)"),
+    refresh: bool = Query(False, description="Force refresh even if cached"),
+    db: Session = Depends(get_db)
+):
+   
+    result = get_content_availability(
+        db, 
+        content_id, 
+        region, 
+        refresh_if_old=not refresh  # If refresh=True, don't use stale cache
+    )
+    
+    return {
+        "content_id": content_id,
+        "cached": result.get("cached", False),
+        "cache_age_days": result.get("cache_age_days"),
+        "stale": result.get("stale"),
+        "platforms": result.get("platforms", [])
+    }

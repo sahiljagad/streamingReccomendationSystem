@@ -13,6 +13,7 @@ class Platform(Base):
     logo_url = Column(String(255), nullable=True)
     website_url = Column(String(255), nullable=True)
     active = Column(Boolean, default=True)
+    tmdb_provider_id = Column(Integer, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
     
     # Relationships
