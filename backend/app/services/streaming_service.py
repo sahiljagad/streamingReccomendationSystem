@@ -23,27 +23,37 @@ def update_content_availability(db: Session, content_id: int, media_type: str, r
     ).delete()
     
     # Add new availability data
-    for provider in tmdb_providers:
-        tmdb_provider_id = provider.get("provider_id")
-        
-        # Check if this provider is one we track
-        if tmdb_provider_id in platform_map:
-            availability = StreamingAvailability(
-                content_id=content_id,
-                platform_id=platform_map[tmdb_provider_id],
-                region=region,
-                last_checked=datetime.utcnow()
-            )
-            db.add(availability)
+    available_platform_ids = []
+    
+    if tmdb_providers:
+        # Content is available on some platforms
+        for provider in tmdb_providers:
+            tmdb_provider_id = provider.get("provider_id")
+            
+            # Check if this provider is one we track
+            if tmdb_provider_id in platform_map:
+                platform_id = platform_map[tmdb_provider_id]
+                availability = StreamingAvailability(
+                    content_id=content_id,
+                    platform_id=platform_id,
+                    region=region,
+                    last_checked=datetime.utcnow()
+                )
+                db.add(availability)
+                available_platform_ids.append(platform_id)
+    
+    # create entry to mark content checked
+    if not available_platform_ids:
+        # No platforms available
+        availability = StreamingAvailability(
+            content_id=content_id,
+            platform_id=None,  # not available on any tracked platform
+            region=region,
+            last_checked=datetime.utcnow()
+        )
+        db.add(availability)
     
     db.commit()
-    
-    # Return list of platform IDs where content is available
-    available_platform_ids = [
-        platform_map[p.get("provider_id")] 
-        for p in tmdb_providers 
-        if p.get("provider_id") in platform_map
-    ]
     
     return available_platform_ids
 
@@ -51,28 +61,27 @@ def update_content_availability(db: Session, content_id: int, media_type: str, r
 def get_content_availability(db: Session, content_id: int, region: str = "US", refresh_if_old: bool = True):
     
     # Check cache
-    availability = db.query(StreamingAvailability).filter(
+    availability_records = db.query(StreamingAvailability).filter(
         StreamingAvailability.content_id == content_id,
         StreamingAvailability.region == region
     ).all()
-
-    # If cached data, check if it's fresh
-    if availability:
+    
+    # check records they're fresh
+    if availability_records:
         # Check if oldest entry is less than 7 days old
-        oldest = min(a.last_checked for a in availability)
+        oldest = min(a.last_checked for a in availability_records)
         cache_age = datetime.utcnow() - oldest
         
         if cache_age < timedelta(days=7):
             # Cache is fresh, return it
-            platforms = [a.platform for a in availability]
+            platforms = [a.platform for a in availability_records if a.platform_id is not None]
             return {
                 "cached": True,
                 "cache_age_days": cache_age.days,
                 "platforms": platforms
             }
         elif not refresh_if_old:
-            # Cache is stale but caller doesn't want refresh
-            platforms = [a.platform for a in availability]
+            platforms = [a.platform for a in availability_records if a.platform_id is not None]
             return {
                 "cached": True,
                 "cache_age_days": cache_age.days,
@@ -80,9 +89,7 @@ def get_content_availability(db: Session, content_id: int, region: str = "US", r
                 "platforms": platforms
             }
     
-    # No cache or stale cache - fetch fresh data
-    # Note: We need to know the media_type, which we don't have here
-    # We'll need to get it from the content table
+    # fetch fresh data
     content = db.query(Content).filter(Content.id == content_id).first()
     
     if not content:

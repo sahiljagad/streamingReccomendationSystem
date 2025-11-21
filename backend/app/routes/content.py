@@ -9,7 +9,6 @@ from app.services.tmdb_service import (
     get_or_create_content
 )
 from app.services.streaming_service import get_content_availability
-from app.models.platform import Platform
 
 router = APIRouter()
 
@@ -65,8 +64,8 @@ class PlatformResponse(BaseModel):
 class AvailabilityResponse(BaseModel):
     content_id: int
     cached: bool
-    cache_age_days: int | None = None
-    stale: bool | None = None
+    cache_age_days: Optional[int] = None
+    stale: Optional[bool] = None
     platforms: list[PlatformResponse]
 
 # Routes
