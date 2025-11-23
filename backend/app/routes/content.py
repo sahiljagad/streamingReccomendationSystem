@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 from app.database import get_db
 from app.services.tmdb_service import (
     search_content,
@@ -9,6 +10,14 @@ from app.services.tmdb_service import (
     get_or_create_content
 )
 from app.services.streaming_service import get_content_availability
+from app.utils.jwt_utils import get_current_user
+from app.models.user import User
+from app.services.rating_service import (
+    rate_content,
+    get_user_ratings,
+    get_content_rating,
+    delete_rating
+)
 
 router = APIRouter()
 
@@ -68,6 +77,32 @@ class AvailabilityResponse(BaseModel):
     stale: Optional[bool] = None
     platforms: list[PlatformResponse]
 
+class RateContentRequest(BaseModel):
+    rating: Optional[int] = None
+    status: Optional[str] = None
+    watched_on_platform_id: Optional[int] = None
+
+
+class UserContentResponse(BaseModel):
+    id: int
+    content_id: int
+    rating: Optional[int] = None
+    status: str
+    watched_on_platform_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    content: ContentDetailResponse
+    
+    class Config:
+        from_attributes = True
+
+
+class UserRatingsResponse(BaseModel):
+    ratings: list[UserContentResponse]
+    total: int
+    limit: int
+    offset: int
+
 # Routes
 @router.get("/search", response_model=ContentSearchResponse)
 def search_content_route(
@@ -116,3 +151,47 @@ def get_content_availability_route(
         "stale": result.get("stale"),
         "platforms": result.get("platforms", [])
     }
+
+@router.post("/{content_id}/rate", response_model=UserContentResponse)
+def rate_content_route(
+    content_id: int,
+    request: RateContentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    user_content = rate_content(
+        db=db,
+        user_id=current_user.id,
+        content_id=content_id,
+        rating=request.rating,
+        watch_status=request.status,
+        watched_on_platform_id=request.watched_on_platform_id
+    )
+    return user_content
+
+
+@router.get("/{content_id}/rating", response_model=UserContentResponse)
+def get_content_rating_route(
+    content_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_content = get_content_rating(db, current_user.id, content_id)
+    
+    if not user_content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No rating found for this content"
+        )
+    
+    return user_content
+
+
+@router.delete("/{content_id}/rating")
+def delete_content_rating_route(
+    content_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return delete_rating(db, current_user.id, content_id)
