@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, CheckConstraint, TIMESTAMP, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey, String, CheckConstraint, TIMESTAMP, UniqueConstraint, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -13,6 +13,7 @@ class UserContent(Base):
     rating = Column(Integer, nullable=True)
     status = Column(String(20), nullable=False)  # 'watched', 'want_to_watch', 'not_interested'
     watched_on_platform_id = Column(Integer, ForeignKey("platforms.id", ondelete="SET NULL"), nullable=True)
+    review_text = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     

@@ -52,6 +52,7 @@ class UserContentItem(BaseModel):
     content_id: int
     rating: Optional[int] = None
     status: str
+    review_text: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     content: ContentBasicInfo

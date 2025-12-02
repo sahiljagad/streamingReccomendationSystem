@@ -81,6 +81,7 @@ class RateContentRequest(BaseModel):
     rating: Optional[int] = None
     status: Optional[str] = None
     watched_on_platform_id: Optional[int] = None
+    review_text: Optional[str] = None
 
 
 class UserContentResponse(BaseModel):
@@ -89,6 +90,7 @@ class UserContentResponse(BaseModel):
     rating: Optional[int] = None
     status: str
     watched_on_platform_id: Optional[int] = None
+    review_text: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     content: ContentDetailResponse
@@ -166,7 +168,8 @@ def rate_content_route(
         content_id=content_id,
         rating=request.rating,
         watch_status=request.status,
-        watched_on_platform_id=request.watched_on_platform_id
+        watched_on_platform_id=request.watched_on_platform_id,
+        review_text=request.review_text
     )
     return user_content
 

@@ -12,7 +12,8 @@ def rate_content(
     content_id: int,
     rating: int = None,
     watch_status: str = None,
-    watched_on_platform_id: int = None
+    watched_on_platform_id: int = None,
+    review_text: str = None
 ):
     
     # Validate rating if provided
@@ -61,6 +62,8 @@ def rate_content(
             user_content.status = watch_status
         if watched_on_platform_id is not None:
             user_content.watched_on_platform_id = watched_on_platform_id
+        if review_text is not None:
+            user_content.review_text = review_text
         user_content.updated_at = datetime.utcnow()
     else:
         # Create new rating
@@ -73,7 +76,8 @@ def rate_content(
             content_id=content_id,
             rating=rating,
             status=watch_status,
-            watched_on_platform_id=watched_on_platform_id
+            watched_on_platform_id=watched_on_platform_id,
+            review_text=review_text
         )
         db.add(user_content)
     
